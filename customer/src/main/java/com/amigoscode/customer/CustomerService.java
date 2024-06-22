@@ -2,6 +2,7 @@ package com.amigoscode.customer;
 
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
 import javax.annotation.security.DenyAll;
 
@@ -9,6 +10,8 @@ import javax.annotation.security.DenyAll;
 @AllArgsConstructor
 public class CustomerService {
     private final CustomerRepository customerRepository;
+    private final RestTemplate restTemplate;
+
     public void registerCustomer(CustomerRegistrationRequest request) {
         Customer customer = Customer.builder()
                 .firstName(request.firstName())
@@ -18,6 +21,16 @@ public class CustomerService {
 
         // TODO: check if email is valid
         // TODO: check if email is not taken
-        customerRepository.save(customer);
+        customerRepository.saveAndFlush(customer);
+        FraudCheckResponse fraudCheckResponse = restTemplate.getForObject(
+                "http://localhost:8081/api/v1/fraud-check/{customerId}",
+                FraudCheckResponse.class,
+                customer.getId()
+        );
+
+        if (fraudCheckResponse.isFraudster()) {
+            throw new IllegalStateException("Fraudster");
+        }
+        // TODO: send notification
     }
 }
